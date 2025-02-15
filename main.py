@@ -26,30 +26,31 @@ def simulate_plasmid(
     noise_std_m=0.01,
     rng_seed=42
 ):
+   
+    rng = np.random.default_rng(rng_seed)
 
-    :param num_segments: discrete ring size
-    :param alpha: diffusion constant * dt/dx^2 (<=0.5 stable in forward Euler)
-    :param steps_per_frame: how many sub-steps each yield
-    :param genes: list of gene dicts:
-        {
-          "name": str,
-          "gene_index": int,
-          "orientation": +1 or -1,
-          "promoter_offset": int
-        }
-    :param c_opt, sigma_opt: center and width for negative supercoiling optimum
-    :param A, B: define the mRNA eqn
-    :param Rmax, sigma: define supercoil injection rate
-    :param stochastic_c, noise_std_c: optional noise in supercoiling
-    :param stochastic_m, noise_std_m: optional noise in mRNA
-    :param rng_seed: reproducible random seed
-    :yield: (c, M)
-        c: supercoiling array
-        M: array of length len(genes) for mRNA
- 
+    # Initialize supercoiling
+    c = np.zeros(num_segments, dtype=float)
+
+    # We'll store an mRNA level for each gene
+    num_genes = len(genes)
+    M = np.zeros(num_genes, dtype=float)
+
+    # Precompute promoter indices for each gene
+    # orientation only affects promoter location, not supercoil injection
+    gene_info = []
+    for i, g in enumerate(genes):
+        g_idx = g["gene_index"]
+        orient = g["orientation"]
+        offset = g["promoter_offset"]
+        promoter_idx = (g_idx + orient*offset) % num_segments
+
+        gene_info.append({
+            "gene_idx": g_idx,
             "promoter_idx": promoter_idx
         })
 
+    # Prepare for diffusion
     idx = np.arange(num_segments)
     left_idx  = (idx - 1) % num_segments
     right_idx = (idx + 1) % num_segments
